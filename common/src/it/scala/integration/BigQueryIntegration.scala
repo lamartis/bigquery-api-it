@@ -1,5 +1,7 @@
 package integration
 
+import java.util.UUID
+
 import com.google.cloud.bigquery._
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.scalatest.prop.Checkers
@@ -17,11 +19,11 @@ import scala.collection.JavaConverters._
 class BigQueryIntegration extends FlatSpec with Checkers with BeforeAndAfterAll with Matchers {
   private lazy val logger = LoggerFactory.getLogger(getClass)
 
-  def PROJECT_ID = BigqueryServiceProvider.PROJECT_ID
-  def DATASET_CI_TESTS = "dataset_ci_tests"
-  def TABLE_FOR_TESTS = "bq_sink_table"
+  val PROJECT_ID = BigqueryServiceProvider.PROJECT_ID
+  val DATASET_CI_TESTS = "dataset_ci_tests"
+  val TABLE_FOR_TESTS = "bq_sink_table_tmp_" + UUID.randomUUID().toString.replace('-', '_')
 
-  def tableId = TableId.of(PROJECT_ID, DATASET_CI_TESTS, TABLE_FOR_TESTS)
+  val tableId = TableId.of(PROJECT_ID, DATASET_CI_TESTS, TABLE_FOR_TESTS)
 
   val schema = StructType(Seq(StructField("id", StringType, true),
     StructField("name", StringType, true),
@@ -29,15 +31,8 @@ class BigQueryIntegration extends FlatSpec with Checkers with BeforeAndAfterAll 
 
   implicit val bigquery: BigQuery = BigqueryServiceProvider.build()
 
-  "BQ target target table" should "not be available" in {
-    // Delete table whether it is already created
-    bigquery.delete(tableId)
-    BigQueryHelper.doesTableAlreadyExist(tableId) should equal(false)
-  }
-
-  it should "be well created, and feed by 6 rows" in {
+  "BQ target target table" should "be well created, and feed by 6 rows" in {
     BigQueryHelper.createTable(schema, tableId, bigquery)
-
     BigQueryHelper.doesTableAlreadyExist(tableId) should equal(true)
 
     val insertRequest = InsertAllRequest.newBuilder(tableId,
@@ -52,8 +47,6 @@ class BigQueryIntegration extends FlatSpec with Checkers with BeforeAndAfterAll 
       .setIgnoreUnknownValues(true)
       .build()
 
-    // Most of the time the insertAll function seems well executed, without throwing any exception,
-    // however, data is never sent to BQ. How it can possible ?
     val insertResponse = bigquery.insertAll(insertRequest)
 
     // Check if errors occurred
@@ -64,11 +57,15 @@ class BigQueryIntegration extends FlatSpec with Checkers with BeforeAndAfterAll 
   }
 
   it should "have 6 rows" in {
-    // I have added the Thread.sleep here, as some times, when the data insertion is done correctly,
-    // the table rows count is equal to 0. This means that the the insertion request is not yet finished, and the
-    // BQ API doesn't treat well the asynchronous requests ?
+    // As The BigQuery Streaming system's table metadata is in an eventually consistent mode,
+    // there is a small latency to find the whole sent data on Big Query.
     Thread.sleep(4000)
     bigquery.listTableData(tableId).iterateAll().asScala.size should equal(6)
+  }
+
+  it should "not be available" in {
+    bigquery.delete(tableId)
+    BigQueryHelper.doesTableAlreadyExist(tableId) should equal(false)
   }
 
 }

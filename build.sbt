@@ -60,8 +60,7 @@ conflictManager := ConflictManager.strict
 dependencyOverrides += "org.scalatest" %% "scalatest" % "3.0.5"
 
 lazy val googleDependencies: Seq[ModuleID] = Seq(
-  "com.google.cloud" % "google-cloud-bigquery" % "1.32.0",
-  "log4j" % "log4j" % "1.2.17"
+  "com.google.cloud" % "google-cloud-bigquery" % "1.32.0"
 )
 
 /*

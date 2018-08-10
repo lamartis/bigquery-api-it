@@ -36,9 +36,9 @@ object BigQueryHelper {
       val info = TableInfo.newBuilder(tableId, tableDefinition).build()
 
       remoteTable = bigQuery.create(info)
-      logger.debug("Table has been well created")
+      logger.debug(s"Table '${tableId.getDataset}:${tableId.getTable}' has been well created")
     } else
-      logger.debug("Already created")
+      logger.debug(s"Table '${tableId.getDataset}:${tableId.getTable}' Already created")
   }
 
 
@@ -50,6 +50,12 @@ object BigQueryHelper {
     * @return
     */
   def doesTableAlreadyExist(tableId: TableId)(implicit bigQuery: BigQuery): Boolean = {
-    bigQuery.getTable(tableId) != null
+    val value = bigQuery.getTable(tableId) != null
+    if (value)
+      logger.debug(s"Table '${tableId.getDataset}:${tableId.getTable}' exists")
+    else
+      logger.debug(s"Table '${tableId.getDataset}:${tableId.getTable}' doesn't exist")
+    value
   }
+
 }
